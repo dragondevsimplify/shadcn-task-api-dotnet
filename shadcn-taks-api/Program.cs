@@ -1,9 +1,12 @@
+using shadcn_taks_api.Persistence;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
 // Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
+builder.Services.AddDbContext<ShadcnTaskDbContext>();
 
 var app = builder.Build();
 
@@ -16,11 +19,11 @@ if (app.Environment.IsDevelopment())
 
 app.UseHttpsRedirection();
 
-app.MapGet("/weatherforecast", () =>
+app.MapGet("/tasks", () =>
     {
         return Results.Ok(123);
     })
-    .WithName("GetWeatherForecast")
+    .WithName("GetTasks")
     .WithOpenApi();
 
 app.Run();
