@@ -40,12 +40,7 @@ app.MapGet("/tags", async (ShadcnTaskDbContext dbContext) =>
         {
             Id = i.Id,
             Name = i.Name,
-            TaskTags = i.TaskTags.Select(t => new TaskTagDto()
-            {
-                TaskId = t.TaskId,
-                TagId = t.TagId,
-            }).ToList(),
-            Tasks = i.Tasks.Select(t => new TaskDto()
+            Tasks = i.Tasks.Select(t => new TaskPreloadDto()
             {
                 Id = t.Id,
                 Name = t.Name,
@@ -83,12 +78,7 @@ app.MapPost("/tags", async (CreateTagRequest payload, ShadcnTaskDbContext dbCont
         {
             Id = newTag.Id,
             Name = newTag.Name,
-            TaskTags = newTag.TaskTags.Select(t => new TaskTagDto()
-            {
-                TaskId = t.TaskId,
-                TagId = t.TagId,
-            }).ToList(),
-            Tasks = newTag.Tasks.Select(t => new TaskDto()
+            Tasks = newTag.Tasks.Select(t => new TaskPreloadDto()
             {
                 Id = t.Id,
                 Name = t.Name,
@@ -120,12 +110,7 @@ app.MapGet("/tasks", async (ShadcnTaskDbContext dbContext) =>
                     Id = i.Id,
                     Name = i.Name,
                     Title = i.Title,
-                    TaskTags = i.TaskTags.Select(t => new TaskTagDto()
-                    {
-                        TaskId = t.TaskId,
-                        TagId = t.TagId,
-                    }).ToList(),
-                    Tags = i.Tags.Select(t => new TagDto()
+                    Tags = i.Tags.Select(t => new TagPreloadDto()
                     {
                         Id = t.Id,
                         Name = t.Name,
@@ -195,12 +180,7 @@ app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbCo
                 Id = newTask.Id,
                 Name = newTask.Name,
                 Title = newTask.Title,
-                TaskTags = newTask.TaskTags.Select(t => new TaskTagDto()
-                {
-                    TaskId = t.TaskId,
-                    TagId = t.TagId,
-                }).ToList(),
-                Tags = newTask.Tags.Select(t => new TagDto()
+                Tags = newTask.Tags.Select(t => new TagPreloadDto()
                 {
                     Id = t.Id,
                     Name = t.Name,
