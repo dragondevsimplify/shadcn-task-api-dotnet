@@ -1,3 +1,4 @@
+using System.Reflection;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
 using shadcn_taks_api.Persistence.Dtos;
@@ -36,11 +37,35 @@ app.UseHttpsRedirection();
 
 #region TagsEndpoints
 
-app.MapGet("/tags", async (ShadcnTaskDbContext dbContext) =>
+app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbContext dbContext) =>
 {
     try
     {
-        var tags = await dbContext.Tags.AsNoTracking().Select(i => new TagDto()
+        var tagsTable = dbContext.Tags;
+        List<Tag> tags = [];
+
+        if (!string.IsNullOrEmpty(req.SortBy) && !string.IsNullOrEmpty(req.SortOrder.ToString()))
+        {
+            var sortBy = req.SortBy.ToLower();
+            var sortOrder = req.SortOrder.ToString()!.ToUpper();
+
+            var propertyInfo = typeof(Task).GetProperty(sortBy, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+
+            if (propertyInfo != null)
+            {
+                if (sortOrder == "ASC")
+                {
+                    tags = await tagsTable.AsNoTracking().OrderBy(task => propertyInfo.GetValue(task, null)).ToListAsync();
+                }
+                else
+                {
+                    tags = await tagsTable.AsNoTracking().OrderByDescending(task => propertyInfo.GetValue(task, null)).ToListAsync();
+                }
+            }
+        }
+
+        // Create response data
+        var res = tags.Select(i => new TagDto()
         {
             Id = i.Id,
             Name = i.Name,
@@ -52,9 +77,9 @@ app.MapGet("/tags", async (ShadcnTaskDbContext dbContext) =>
                 Status = t.Status,
                 Priority = t.Priority,
             }).ToList(),
-        }).ToListAsync();
+        });
 
-        return Results.Ok(tags);
+        return Results.Ok(res);
     }
     catch (Exception e)
     {
