@@ -1,6 +1,7 @@
 using shadcn_taks_api.Persistence.Entities;
+using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
-namespace shadcn_taks_api.Dtos;
+namespace shadcn_taks_api.Persistence.Dtos;
 
 public class TaskDto
 {
@@ -9,4 +10,7 @@ public class TaskDto
     public string Title { get; set; }
 
     public List<TagPreloadDto> Tags { get; set; } = [];
+
+    public TaskStatus Status { get; set; }
+    public TaskPriority Priority { get; set; }
 }

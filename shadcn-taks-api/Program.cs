@@ -1,6 +1,6 @@
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Dtos;
+using shadcn_taks_api.Persistence.Dtos;
 using shadcn_taks_api.Persistence;
 using shadcn_taks_api.Persistence.Entities;
 using shadcn_taks_api.Persistence.Requests;
@@ -160,6 +160,8 @@ app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbCo
             {
                 Name = payload.Name,
                 Title = payload.Title,
+                Status = payload.Status,
+                Priority = payload.Priority,
             };
             await dbContext.Tasks.AddAsync(newTask);
 

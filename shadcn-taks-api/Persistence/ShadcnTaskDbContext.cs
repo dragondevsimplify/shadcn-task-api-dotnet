@@ -1,6 +1,8 @@
 using Microsoft.EntityFrameworkCore;
 using shadcn_taks_api.Persistence.Entities;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
+using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
+using TaskPriority = shadcn_taks_api.Persistence.Entities.TaskPriority;
 
 namespace shadcn_taks_api.Persistence;
 
@@ -22,16 +24,23 @@ public class ShadcnTaskDbContext(DbContextOptions<ShadcnTaskDbContext> options) 
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Tag>(entity =>
-        {
-            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
-        });
+        modelBuilder.Entity<Tag>(entity => { entity.Property(x => x.Name).HasMaxLength(100).IsRequired(); });
 
         modelBuilder.Entity<Task>(entity =>
         {
             entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
             entity.Property(x => x.Title).HasMaxLength(1000).IsRequired();
             entity.HasMany(x => x.Tags).WithMany(x => x.Tasks).UsingEntity<TaskTag>();
+            entity.Property(x => x.Status)
+                .HasConversion(
+                    v => v.ToString(),
+                    v => (TaskStatus)Enum.Parse(typeof(TaskStatus), v))
+                .HasMaxLength(100).IsRequired();
+            entity.Property(x => x.Priority)
+                .HasConversion(
+                    v => v.ToString(),
+                    v => (TaskPriority)Enum.Parse(typeof(TaskPriority), v))
+                .HasMaxLength(100).IsRequired();
         });
     }
 }
