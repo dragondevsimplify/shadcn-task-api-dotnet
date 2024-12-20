@@ -1,8 +1,9 @@
-using System.Text.Json;
 using System.Text.Json.Serialization;
 using Microsoft.EntityFrameworkCore;
+using shadcn_taks_api.Dtos;
 using shadcn_taks_api.Persistence;
 using shadcn_taks_api.Persistence.Entities;
+using shadcn_taks_api.Persistence.Requests;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -13,11 +14,7 @@ builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ShadcnTaskDbContext>();
 builder.Services.AddControllers()
-    .AddNewtonsoftJson(x => x.SerializerSettings.SetDefault())
-    .AddJsonOptions(x =>
-    {
-        // x.
-    });
+    .AddJsonOptions(options => { options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; });
 
 var app = builder.Build();
 
@@ -39,7 +36,23 @@ app.MapGet("/tags", async (ShadcnTaskDbContext dbContext) =>
 {
     try
     {
-        var tags = await dbContext.Tags.ToListAsync();
+        var tags = await dbContext.Tags.AsNoTracking().Select(i => new TagDto()
+        {
+            Id = i.Id,
+            Name = i.Name,
+            TaskTags = i.TaskTags.Select(t => new TaskTagDto()
+            {
+                TaskId = t.TaskId,
+                TagId = t.TagId,
+            }).ToList(),
+            Tasks = i.Tasks.Select(t => new TaskDto()
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Title = t.Title,
+            }).ToList(),
+        }).ToListAsync();
+
         return Results.Ok(tags);
     }
     catch (Exception e)
@@ -48,7 +61,7 @@ app.MapGet("/tags", async (ShadcnTaskDbContext dbContext) =>
     }
 }).WithName("GetTags").WithOpenApi();
 
-app.MapPost("/tags", async (CreateTag payload, ShadcnTaskDbContext dbContext) =>
+app.MapPost("/tags", async (CreateTagRequest payload, ShadcnTaskDbContext dbContext) =>
 {
     try
     {
@@ -65,13 +78,31 @@ app.MapPost("/tags", async (CreateTag payload, ShadcnTaskDbContext dbContext) =>
         await dbContext.Tags.AddAsync(newTag);
         await dbContext.SaveChangesAsync();
 
-        return Results.Created($"/tags/{newTag.Id}", newTag);
+        // Create response data
+        var res = new TagDto()
+        {
+            Id = newTag.Id,
+            Name = newTag.Name,
+            TaskTags = newTag.TaskTags.Select(t => new TaskTagDto()
+            {
+                TaskId = t.TaskId,
+                TagId = t.TagId,
+            }).ToList(),
+            Tasks = newTag.Tasks.Select(t => new TaskDto()
+            {
+                Id = t.Id,
+                Name = t.Name,
+                Title = t.Title,
+            }).ToList(),
+        };
+
+        return Results.Created($"/tags/{res.Id}", res);
     }
     catch (Exception e)
     {
         return Results.BadRequest(e.Message);
     }
-}).WithName("CreateTag").WithOpenApi();
+}).WithName("CreateTagDto").WithOpenApi();
 
 #endregion
 
@@ -82,8 +113,26 @@ app.MapGet("/tasks", async (ShadcnTaskDbContext dbContext) =>
         try
         {
             var tasks = await dbContext.Tasks.AsNoTracking()
+                .Include(i => i.TaskTags)
                 .Include(i => i.Tags)
+                .Select(i => new TaskDto()
+                {
+                    Id = i.Id,
+                    Name = i.Name,
+                    Title = i.Title,
+                    TaskTags = i.TaskTags.Select(t => new TaskTagDto()
+                    {
+                        TaskId = t.TaskId,
+                        TagId = t.TagId,
+                    }).ToList(),
+                    Tags = i.Tags.Select(t => new TagDto()
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                    }).ToList(),
+                })
                 .ToListAsync();
+
             return Results.Ok(tasks);
         }
         catch (Exception e)
@@ -94,7 +143,7 @@ app.MapGet("/tasks", async (ShadcnTaskDbContext dbContext) =>
     .WithName("GetTasks")
     .WithOpenApi();
 
-app.MapPost("/tasks", async (CreateTask payload, ShadcnTaskDbContext dbContext) =>
+app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbContext) =>
     {
         try
         {
@@ -140,7 +189,25 @@ app.MapPost("/tasks", async (CreateTask payload, ShadcnTaskDbContext dbContext) 
             }));
             await dbContext.SaveChangesAsync();
 
-            return Results.Created($"/tasks/{newTask.Id}", newTask);
+            // Create response data
+            var taskDto = new TaskDto()
+            {
+                Id = newTask.Id,
+                Name = newTask.Name,
+                Title = newTask.Title,
+                TaskTags = newTask.TaskTags.Select(t => new TaskTagDto()
+                {
+                    TaskId = t.TaskId,
+                    TagId = t.TagId,
+                }).ToList(),
+                Tags = newTask.Tags.Select(t => new TagDto()
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                }).ToList(),
+            };
+
+            return Results.Created($"/tasks/{taskDto.Id}", taskDto);
         }
         catch (Exception e)
         {

@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using shadcn_taks_api.Persistence;
 
@@ -10,9 +11,11 @@ using shadcn_taks_api.Persistence;
 namespace shadcn_taks_api.Migrations
 {
     [DbContext(typeof(ShadcnTaskDbContext))]
-    partial class ShadcnTaskDbContextModelSnapshot : ModelSnapshot
+    [Migration("20241220075741_RefactorTaskTagTable")]
+    partial class RefactorTaskTagTable
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
