@@ -1,4 +1,5 @@
 using Microsoft.EntityFrameworkCore;
+using shadcn_taks_api.Conversions;
 using shadcn_taks_api.Persistence.Entities;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
 using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
@@ -34,12 +35,12 @@ public class ShadcnTaskDbContext(DbContextOptions<ShadcnTaskDbContext> options) 
             entity.Property(x => x.Status)
                 .HasConversion(
                     v => v.ToString(),
-                    v => (TaskStatus)Enum.Parse(typeof(TaskStatus), v))
+                    v => EnumConverter.ConvertToEnum<TaskStatus>(v))
                 .HasMaxLength(100).IsRequired();
             entity.Property(x => x.Priority)
                 .HasConversion(
                     v => v.ToString(),
-                    v => (TaskPriority)Enum.Parse(typeof(TaskPriority), v))
+                    v => EnumConverter.ConvertToEnum<TaskPriority>(v))
                 .HasMaxLength(100).IsRequired();
         });
     }

@@ -5,6 +5,7 @@ using shadcn_taks_api.Persistence;
 using shadcn_taks_api.Persistence.Entities;
 using shadcn_taks_api.Persistence.Requests;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
+using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -13,8 +14,11 @@ var builder = WebApplication.CreateBuilder(args);
 builder.Services.AddEndpointsApiExplorer();
 builder.Services.AddSwaggerGen();
 builder.Services.AddDbContext<ShadcnTaskDbContext>();
-builder.Services.AddControllers()
-    .AddJsonOptions(options => { options.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles; });
+builder.Services.ConfigureHttpJsonOptions(options =>
+{
+    options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
+});
+
 
 var app = builder.Build();
 
@@ -45,6 +49,8 @@ app.MapGet("/tags", async (ShadcnTaskDbContext dbContext) =>
                 Id = t.Id,
                 Name = t.Name,
                 Title = t.Title,
+                Status = t.Status,
+                Priority = t.Priority,
             }).ToList(),
         }).ToListAsync();
 
@@ -105,20 +111,23 @@ app.MapGet("/tasks", async (ShadcnTaskDbContext dbContext) =>
             var tasks = await dbContext.Tasks.AsNoTracking()
                 .Include(i => i.TaskTags)
                 .Include(i => i.Tags)
-                .Select(i => new TaskDto()
-                {
-                    Id = i.Id,
-                    Name = i.Name,
-                    Title = i.Title,
-                    Tags = i.Tags.Select(t => new TagPreloadDto()
-                    {
-                        Id = t.Id,
-                        Name = t.Name,
-                    }).ToList(),
-                })
                 .ToListAsync();
 
-            return Results.Ok(tasks);
+            var res = tasks.Select(i => new TaskDto()
+            {
+                Id = i.Id,
+                Name = i.Name,
+                Title = i.Title,
+                Tags = i.Tags.Select(t => new TagPreloadDto()
+                {
+                    Id = t.Id,
+                    Name = t.Name,
+                }).ToList(),
+                Status = i.Status,
+                Priority = i.Priority,
+            });
+
+            return Results.Ok(res);
         }
         catch (Exception e)
         {
@@ -182,18 +191,20 @@ app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbCo
                 Id = newTask.Id,
                 Name = newTask.Name,
                 Title = newTask.Title,
-                Tags = newTask.Tags.Select(t => new TagPreloadDto()
+                Tags = tags.Select(t => new TagPreloadDto()
                 {
                     Id = t.Id,
                     Name = t.Name,
                 }).ToList(),
+                Status = newTask.Status,
+                Priority = newTask.Priority,
             };
 
             return Results.Created($"/tasks/{taskDto.Id}", taskDto);
         }
         catch (Exception e)
         {
-            return Results.BadRequest(e);
+            return Results.BadRequest(e.Message);
         }
     }).WithName("AddTask")
     .WithOpenApi();
