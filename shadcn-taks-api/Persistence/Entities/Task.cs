@@ -7,7 +7,7 @@ public class Task
     public required string Title { get; set; }
 
     public List<TaskTag> TaskTags { get; } = [];
-    public List<Tag> Tags { get; } = [];
+    public List<Tag> Tags { get; set; } = [];
 
     public TaskStatus Status { get; set; }
     public TaskPriority Priority { get; set; }
