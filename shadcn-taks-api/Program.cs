@@ -257,6 +257,14 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
         {
             tasksQuery = tasksQuery.Where(t => t.TaskTags.Any(tt => req.TagIds.Contains(tt.TagId)));
         }
+        if (req.Statuses is { Length: > 0 })
+        {
+            tasksQuery = tasksQuery.Where(t => req.Statuses.Contains(t.Status));
+        }
+        if (req.Priorities is { Length: > 0 })
+        {
+            tasksQuery = tasksQuery.Where(t => req.Priorities.Contains(t.Priority));
+        }
 
         // Get all tasks
         var tasks = await tasksQuery
