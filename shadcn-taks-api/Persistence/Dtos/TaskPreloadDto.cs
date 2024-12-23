@@ -6,8 +6,8 @@ namespace shadcn_taks_api.Persistence.Dtos;
 public class TaskPreloadDto
 {
     public int Id { get; set; }
-    public string Name { get; set; }
-    public string Title { get; set; }
+    public required string Name { get; set; }
+    public required string Title { get; set; }
 
     public TaskStatus Status { get; set; }
     public TaskPriority Priority { get; set; }

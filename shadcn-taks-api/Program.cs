@@ -1,12 +1,13 @@
-using System.Reflection;
+using System.Linq.Expressions;
 using System.Text.Json.Serialization;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using shadcn_taks_api.Persistence.Dtos;
 using shadcn_taks_api.Persistence;
 using shadcn_taks_api.Persistence.Entities;
 using shadcn_taks_api.Persistence.Requests;
+using shadcn_taks_api.Persistence.Responses;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
-using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -39,33 +40,75 @@ app.UseHttpsRedirection();
 
 app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbContext dbContext) =>
 {
-    try
+    var tagsTable = dbContext.Tags.AsNoTracking();
+
+    // Sorting
+    if (!string.IsNullOrEmpty(req.SortBy) && !string.IsNullOrEmpty(req.SortOrder.ToString()))
     {
-        var tagsTable = dbContext.Tags;
-        List<Tag> tags = [];
+        var sortBy = req.SortBy.ToLower();
+        var sortOrder = req.SortOrder.ToString()!.ToUpper();
 
-        if (!string.IsNullOrEmpty(req.SortBy) && !string.IsNullOrEmpty(req.SortOrder.ToString()))
+        Expression<Func<Tag, object>> keySelector = sortBy switch
         {
-            var sortBy = req.SortBy.ToLower();
-            var sortOrder = req.SortOrder.ToString()!.ToUpper();
+            "name" => t => t.Name,
+            _ => t => t.Id
+        };
 
-            var propertyInfo = typeof(Task).GetProperty(sortBy, BindingFlags.IgnoreCase | BindingFlags.Public | BindingFlags.Instance);
+        tagsTable = sortOrder == "ASC"
+            ? tagsTable.OrderBy(keySelector)
+            : tagsTable.OrderByDescending(keySelector);
+    }
 
-            if (propertyInfo != null)
+    // Filtering
+    if (!string.IsNullOrEmpty(req.Name?.Trim()))
+    {
+        tagsTable = tagsTable.Where(t => t.Name.Contains(req.Name.Trim()));
+    }
+
+    // Get all tags
+    var tags = await tagsTable.ToListAsync();
+
+    // Pagination
+    if (req.Page.HasValue && req.PageSize.HasValue)
+    {
+        var page = req.Page.Value;
+        var pageSize = req.PageSize.Value;
+
+        if (page > 0 && pageSize > 0)
+        {
+            var offset = (page - 1) * pageSize;
+            var pagedTasks = await tagsTable.Skip(offset).Take(pageSize).ToListAsync();
+
+            var pagination = new PaginationResponse<TagDto>()
             {
-                if (sortOrder == "ASC")
+                PageNumber = page,
+                PageSize = pageSize,
+                List = pagedTasks.Select(i => new TagDto()
                 {
-                    tags = await tagsTable.AsNoTracking().OrderBy(task => propertyInfo.GetValue(task, null)).ToListAsync();
-                }
-                else
-                {
-                    tags = await tagsTable.AsNoTracking().OrderByDescending(task => propertyInfo.GetValue(task, null)).ToListAsync();
-                }
-            }
-        }
+                    Id = i.Id,
+                    Name = i.Name,
+                    Tasks = i.Tasks.Select(t => new TaskPreloadDto()
+                    {
+                        Id = t.Id,
+                        Name = t.Name,
+                        Title = t.Title,
+                        Status = t.Status,
+                        Priority = t.Priority,
+                    }).ToList(),
+                }).ToList(),
+                TotalItems = tags.Count,
+                TotalPages = (int)Math.Ceiling((double)tags.Count / pageSize),
+            };
 
-        // Create response data
-        var res = tags.Select(i => new TagDto()
+            return Results.Ok(pagination);
+        }
+    }
+
+    var getAll = new PaginationResponse<TagDto>()
+    {
+        PageNumber = 0,
+        PageSize = 0,
+        List = tags.Select(i => new TagDto()
         {
             Id = i.Id,
             Name = i.Name,
@@ -77,23 +120,45 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
                 Status = t.Status,
                 Priority = t.Priority,
             }).ToList(),
-        });
+        }).ToList(),
+        TotalItems = tags.Count,
+        TotalPages = 0,
+    };
 
-        return Results.Ok(res);
-    }
-    catch (Exception e)
-    {
-        return Results.BadRequest(e.Message);
-    }
+    return TypedResults.Ok(getAll);
 }).WithName("GetTags").WithOpenApi();
 
-app.MapPost("/tags", async (CreateTagRequest payload, ShadcnTaskDbContext dbContext) =>
+app.MapGet("/tags/{id:int}", async Task<Results<NotFound, Ok<TagDto>>> (int id, ShadcnTaskDbContext dbContext) =>
 {
-    try
+    var tag = await dbContext.Tags.FirstOrDefaultAsync(t => t.Id == id);
+
+    if (tag is null)
+    {
+        return TypedResults.NotFound();
+    }
+
+    var tagDto = new TagDto()
+    {
+        Id = tag.Id,
+        Name = tag.Name,
+        Tasks = tag.Tasks.Select(t => new TaskPreloadDto()
+        {
+            Id = t.Id,
+            Name = t.Name,
+            Title = t.Title,
+        }).ToList(),
+    };
+
+    return TypedResults.Ok(tagDto);
+}).WithName("GetTag").WithOpenApi();
+
+app.MapPost("/tags",
+    async Task<Results<BadRequest<string>, CreatedAtRoute<TagDto>>> (CreateTagRequest payload,
+        ShadcnTaskDbContext dbContext) =>
     {
         if (payload.Id.HasValue)
         {
-            return Results.BadRequest("Id must be null or not set for create tag.");
+            return TypedResults.BadRequest("Id must be null or not set for create tag.");
         }
 
         var newTag = new Tag()
@@ -105,7 +170,7 @@ app.MapPost("/tags", async (CreateTagRequest payload, ShadcnTaskDbContext dbCont
         await dbContext.SaveChangesAsync();
 
         // Create response data
-        var res = new TagDto()
+        var tagDto = new TagDto()
         {
             Id = newTag.Id,
             Name = newTag.Name,
@@ -117,13 +182,40 @@ app.MapPost("/tags", async (CreateTagRequest payload, ShadcnTaskDbContext dbCont
             }).ToList(),
         };
 
-        return Results.Created($"/tags/{res.Id}", res);
-    }
-    catch (Exception e)
+        return TypedResults.CreatedAtRoute(tagDto, "GetTag", new { id = newTag.Id });
+    }).WithName("CreateTagDto").WithOpenApi();
+
+app.MapPut("/tags/{id:int}", async Task<Results<BadRequest<string>, NotFound, NoContent>> (
+    int id, Tag tag, ShadcnTaskDbContext dbContext) =>
+{
+    if (id != tag.Id)
     {
-        return Results.BadRequest(e.Message);
+        return TypedResults.BadRequest("Id mismatch.");
     }
-}).WithName("CreateTagDto").WithOpenApi();
+
+    var isExist = await dbContext.Tags.AnyAsync(i => i.Id == id);
+    if (!isExist)
+    {
+        return TypedResults.NotFound();
+    }
+
+    dbContext.Update(tag);
+    await dbContext.SaveChangesAsync();
+
+    return TypedResults.NoContent();
+}).WithName("UpdateTag").WithOpenApi();
+
+app.MapDelete("/tags/{id:int}", async Task<Results<NotFound, NoContent>> (int id, ShadcnTaskDbContext dbContext) =>
+{
+    var deletedCount = await dbContext.Tags.Where(i => i.Id == id).ExecuteDeleteAsync();
+
+    if (deletedCount == 0)
+    {
+        return TypedResults.NotFound();
+    }
+
+    return TypedResults.NoContent();
+}).WithName("DeleteTag").WithOpenApi();
 
 #endregion
 
