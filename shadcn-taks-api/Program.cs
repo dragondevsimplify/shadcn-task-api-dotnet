@@ -205,7 +205,7 @@ app.MapPut("/tags/{id:int}", async Task<Results<BadRequest<string>, NotFound, No
         return TypedResults.NotFound();
     }
 
-    isExist = await dbContext.Tags.AnyAsync(t => t.Name == tag.Name);
+    isExist = await dbContext.Tags.AnyAsync(t => t.Name == tag.Name && t.Id != tag.Id);
     if (isExist)
     {
         return TypedResults.BadRequest("Name is already in use.");
@@ -260,18 +260,22 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
         {
             tasksQuery = tasksQuery.Where(t => t.Name.Contains(req.Name.Trim()));
         }
+
         if (!string.IsNullOrEmpty(req.Title?.Trim()))
         {
             tasksQuery = tasksQuery.Where(t => t.Title.Contains(req.Title.Trim()));
         }
+
         if (req.TagIds is { Length: > 0 })
         {
             tasksQuery = tasksQuery.Where(t => t.TaskTags.Any(tt => req.TagIds.Contains(tt.TagId)));
         }
+
         if (req.Statuses is { Length: > 0 })
         {
             tasksQuery = tasksQuery.Where(t => req.Statuses.Contains(t.Status));
         }
+
         if (req.Priorities is { Length: > 0 })
         {
             tasksQuery = tasksQuery.Where(t => req.Priorities.Contains(t.Priority));
@@ -279,7 +283,6 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
 
         // Get all tasks
         var tasks = await tasksQuery
-            .Include(i => i.TaskTags)
             .Include(i => i.Tags)
             .ToListAsync();
 
@@ -292,7 +295,11 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
             if (page > 0 && pageSize > 0)
             {
                 var offset = (page - 1) * pageSize;
-                var pagedTasks = await tasksQuery.Skip(offset).Take(pageSize).ToListAsync();
+                var pagedTasks = await tasksQuery
+                    .Skip(offset)
+                    .Take(pageSize)
+                    .Include(i => i.Tags)
+                    .ToListAsync();
 
                 var pagination = new PaginationResponse<TaskDto>()
                 {
@@ -386,8 +393,15 @@ app.MapGet("/tasks/{id:int}", async Task<Results<NotFound, Ok<TaskDto>>> (int id
     return TypedResults.Ok(taskDto);
 }).WithName("GetTaskById").WithOpenApi();
 
-app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbContext) =>
+app.MapPost("/tasks", async Task<Results<BadRequest<string>, CreatedAtRoute<TaskDto>>> (CreateTaskRequest payload, ShadcnTaskDbContext dbContext) =>
     {
+        // Check if name is existing
+        var isExist = await dbContext.Tasks.AnyAsync(t => t.Name == payload.Name);
+        if (isExist)
+        {
+            return TypedResults.BadRequest("Task with the same name already exists");
+        }
+
         // Create tags if not existing in DB
         List<Tag> tags = [];
         foreach (var payloadTag in payload.Tags)
@@ -452,20 +466,78 @@ app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbCo
     .WithOpenApi();
 
 app.MapPut("/tasks/{id:int}", async Task<Results<BadRequest<string>, NotFound, NoContent>> (
-    int id, Task task, ShadcnTaskDbContext dbContext) =>
+    int id, UpdateTaskRequest task, ShadcnTaskDbContext dbContext) =>
 {
+    // Check task Id
     if (id != task.Id)
     {
         return TypedResults.BadRequest("Id mismatch.");
     }
 
+    // Check task is existing
     var isExist = await dbContext.Tasks.AnyAsync(i => i.Id == id);
     if (!isExist)
     {
         return TypedResults.NotFound();
     }
 
-    dbContext.Update(task);
+    // Check task name
+    isExist = await dbContext.Tasks.AnyAsync(t => t.Name == task.Name && t.Id != id);
+    if (isExist)
+    {
+        return TypedResults.BadRequest("Task with the same name already exists");
+    }
+
+    // Delete task tag
+    await dbContext.TaskTags.Where(i => i.TaskId == id).ExecuteDeleteAsync();
+
+    // Create tags if not existing in DB
+    List<Tag> tags = [];
+    foreach (var payloadTag in task.Tags)
+    {
+        if (!payloadTag.Id.HasValue)
+        {
+            var isExistTag = await dbContext.Tags.AnyAsync(t => t.Name == payloadTag.Name);
+            if (isExistTag)
+            {
+                return TypedResults.BadRequest($"Tag with the same name already exists: {payloadTag.Name}");
+            }
+
+            var newTag = new Tag()
+            {
+                Name = payloadTag.Name,
+            };
+            await dbContext.Tags.AddAsync(newTag);
+            tags.Add(newTag);
+        }
+        else
+        {
+            tags.Add(new Tag()
+            {
+                Id = payloadTag.Id.Value,
+                Name = payloadTag.Name,
+            });
+        }
+    }
+
+    // Update task & save changes
+    var taskUpdated = new Task()
+    {
+        Id = task.Id,
+        Name = task.Name,
+        Title = task.Title,
+        Status = task.Status,
+        Priority = task.Priority,
+    };
+    dbContext.Tasks.Update(taskUpdated);
+    await dbContext.SaveChangesAsync();
+
+    // Create tasks_tags
+    await dbContext.TaskTags.AddRangeAsync(tags.Select(t => new TaskTag()
+    {
+        TaskId = id,
+        TagId = t.Id,
+    }));
     await dbContext.SaveChangesAsync();
 
     return TypedResults.NoContent();

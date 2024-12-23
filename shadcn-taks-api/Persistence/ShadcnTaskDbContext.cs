@@ -25,7 +25,11 @@ public class ShadcnTaskDbContext(DbContextOptions<ShadcnTaskDbContext> options) 
     {
         base.OnModelCreating(modelBuilder);
 
-        modelBuilder.Entity<Tag>(entity => { entity.Property(x => x.Name).HasMaxLength(100).IsRequired(); });
+        modelBuilder.Entity<Tag>(entity =>
+        {
+            entity.Property(x => x.Name).HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
+        });
 
         modelBuilder.Entity<Task>(entity =>
         {
@@ -42,6 +46,7 @@ public class ShadcnTaskDbContext(DbContextOptions<ShadcnTaskDbContext> options) 
                     v => v.ToString(),
                     v => EnumConverter.ConvertToEnum<TaskPriority>(v))
                 .HasMaxLength(100).IsRequired();
+            entity.HasIndex(x => x.Name).IsUnique();
         });
     }
 }
