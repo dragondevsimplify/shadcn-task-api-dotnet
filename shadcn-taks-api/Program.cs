@@ -167,6 +167,12 @@ app.MapPost("/tags",
             return TypedResults.BadRequest("Id must be null or not set for create tag.");
         }
 
+        var isExist = await dbContext.Tags.AnyAsync(t => t.Name == payload.Name);
+        if (isExist)
+        {
+            return TypedResults.BadRequest("Name is already in use.");
+        }
+
         var newTag = new Tag()
         {
             Name = payload.Name,
@@ -180,14 +186,6 @@ app.MapPost("/tags",
         {
             Id = newTag.Id,
             Name = newTag.Name,
-            Tasks = newTag.Tasks.Select(t => new TaskPreloadDto()
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Title = t.Title,
-                Status = t.Status,
-                Priority = t.Priority,
-            }).ToList(),
         };
 
         return TypedResults.CreatedAtRoute(tagDto, "GetTagById", new { id = newTag.Id });
@@ -205,6 +203,12 @@ app.MapPut("/tags/{id:int}", async Task<Results<BadRequest<string>, NotFound, No
     if (!isExist)
     {
         return TypedResults.NotFound();
+    }
+
+    isExist = await dbContext.Tags.AnyAsync(t => t.Name == tag.Name);
+    if (isExist)
+    {
+        return TypedResults.BadRequest("Name is already in use.");
     }
 
     dbContext.Update(tag);
