@@ -67,7 +67,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
     }
 
     // Get all tags
-    var tags = await tagsQuery.ToListAsync();
+    var tags = await tagsQuery.Include(t => t.Tasks).ToListAsync();
 
     // Pagination
     if (req is { Page: not null, PageSize: not null })
@@ -78,7 +78,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
         if (page > 0 && pageSize > 0)
         {
             var offset = (page - 1) * pageSize;
-            var pagedTasks = await tagsQuery.Skip(offset).Take(pageSize).ToListAsync();
+            var pagedTasks = await tagsQuery.Skip(offset).Take(pageSize).Include(t => t.Tasks).ToListAsync();
 
             var pagination = new PaginationResponse<TagDto>()
             {
@@ -101,7 +101,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
                 TotalPages = (int)Math.Ceiling((double)tags.Count / pageSize),
             };
 
-            return Results.Ok(pagination);
+            return TypedResults.Ok(pagination);
         }
     }
 
@@ -127,11 +127,14 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
     };
 
     return TypedResults.Ok(getAll);
-}).WithName("GetTags").WithOpenApi();
+}).WithName("GetTagList").WithOpenApi();
 
 app.MapGet("/tags/{id:int}", async Task<Results<NotFound, Ok<TagDto>>> (int id, ShadcnTaskDbContext dbContext) =>
 {
-    var tag = await dbContext.Tags.FirstOrDefaultAsync(t => t.Id == id);
+    var tag = await dbContext.Tags
+        .AsNoTracking()
+        .Include(t => t.Tasks)
+        .FirstOrDefaultAsync(t => t.Id == id);
 
     if (tag is null)
     {
@@ -147,11 +150,13 @@ app.MapGet("/tags/{id:int}", async Task<Results<NotFound, Ok<TagDto>>> (int id, 
             Id = t.Id,
             Name = t.Name,
             Title = t.Title,
+            Status = t.Status,
+            Priority = t.Priority,
         }).ToList(),
     };
 
     return TypedResults.Ok(tagDto);
-}).WithName("GetTag").WithOpenApi();
+}).WithName("GetTagById").WithOpenApi();
 
 app.MapPost("/tags",
     async Task<Results<BadRequest<string>, CreatedAtRoute<TagDto>>> (CreateTagRequest payload,
@@ -180,11 +185,13 @@ app.MapPost("/tags",
                 Id = t.Id,
                 Name = t.Name,
                 Title = t.Title,
+                Status = t.Status,
+                Priority = t.Priority,
             }).ToList(),
         };
 
-        return TypedResults.CreatedAtRoute(tagDto, "GetTag", new { id = newTag.Id });
-    }).WithName("CreateTagDto").WithOpenApi();
+        return TypedResults.CreatedAtRoute(tagDto, "GetTagById", new { id = newTag.Id });
+    }).WithName("CreateTag").WithOpenApi();
 
 app.MapPut("/tags/{id:int}", async Task<Results<BadRequest<string>, NotFound, NoContent>> (
     int id, Tag tag, ShadcnTaskDbContext dbContext) =>
@@ -304,7 +311,7 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
                     TotalPages = (int)Math.Ceiling((double)tasks.Count / pageSize),
                 };
 
-                return Results.Ok(pagination);
+                return TypedResults.Ok(pagination);
             }
         }
 
@@ -331,92 +338,146 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
 
         return TypedResults.Ok(getAll);
     })
-    .WithName("GetTasks")
+    .WithName("GetTaskList")
     .WithOpenApi();
 
 app.MapGet("/tasks/statuses", () =>
 {
     var statuses = Enum.GetValues(typeof(TaskStatus)).Cast<TaskStatus>();
-    return Results.Ok(statuses);
-}).WithName("GetTaskStatuses").WithOpenApi();
+    return TypedResults.Ok(statuses);
+}).WithName("GetTaskStatusList").WithOpenApi();
 
 app.MapGet("/tasks/priorities", () =>
 {
     var priorities = Enum.GetValues(typeof(TaskPriority)).Cast<TaskPriority>();
-    return Results.Ok(priorities);
-}).WithName("GetTaskPriorities").WithOpenApi();
+    return TypedResults.Ok(priorities);
+}).WithName("GetTaskPriorityList").WithOpenApi();
+
+app.MapGet("/tasks/{id:int}", async Task<Results<NotFound, Ok<TaskDto>>> (int id, ShadcnTaskDbContext dbContext) =>
+{
+    var task = await dbContext.Tasks
+        .AsNoTracking()
+        .Include(t => t.Tags)
+        .FirstOrDefaultAsync(t => t.Id == id);
+
+    if (task is null)
+    {
+        return TypedResults.NotFound();
+    }
+
+    var taskDto = new TaskDto()
+    {
+        Id = task.Id,
+        Name = task.Name,
+        Title = task.Title,
+        Tags = task.Tags.Select(t => new TagPreloadDto()
+        {
+            Id = t.Id,
+            Name = t.Name,
+        }).ToList(),
+        Status = task.Status,
+        Priority = task.Priority,
+    };
+
+    return TypedResults.Ok(taskDto);
+}).WithName("GetTaskById").WithOpenApi();
 
 app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbContext) =>
     {
-        try
+        // Create tags if not existing in DB
+        List<Tag> tags = [];
+        foreach (var payloadTag in payload.Tags)
         {
-            // Create tags if not existing in DB
-            List<Tag> tags = [];
-            foreach (var payloadTag in payload.Tags)
+            if (!payloadTag.Id.HasValue)
             {
-                if (!payloadTag.Id.HasValue)
+                var newTag = new Tag()
                 {
-                    var newTag = new Tag()
-                    {
-                        Name = payloadTag.Name,
-                    };
-                    await dbContext.Tags.AddAsync(newTag);
-                    tags.Add(newTag);
-                }
-                else
-                {
-                    tags.Add(new Tag()
-                    {
-                        Id = payloadTag.Id.Value,
-                        Name = payloadTag.Name,
-                    });
-                }
+                    Name = payloadTag.Name,
+                };
+                await dbContext.Tags.AddAsync(newTag);
+                tags.Add(newTag);
             }
-
-            // Create task
-            var newTask = new Task()
+            else
             {
-                Name = payload.Name,
-                Title = payload.Title,
-                Status = payload.Status,
-                Priority = payload.Priority,
-            };
-            await dbContext.Tasks.AddAsync(newTask);
-
-            // Save changes
-            await dbContext.SaveChangesAsync();
-
-            // Create tasks_tags
-            await dbContext.TaskTags.AddRangeAsync(tags.Select(t => new TaskTag()
-            {
-                TaskId = newTask.Id,
-                TagId = t.Id,
-            }));
-            await dbContext.SaveChangesAsync();
-
-            // Create response data
-            var taskDto = new TaskDto()
-            {
-                Id = newTask.Id,
-                Name = newTask.Name,
-                Title = newTask.Title,
-                Tags = tags.Select(t => new TagPreloadDto()
+                tags.Add(new Tag()
                 {
-                    Id = t.Id,
-                    Name = t.Name,
-                }).ToList(),
-                Status = newTask.Status,
-                Priority = newTask.Priority,
-            };
+                    Id = payloadTag.Id.Value,
+                    Name = payloadTag.Name,
+                });
+            }
+        }
 
-            return Results.Created($"/tasks/{taskDto.Id}", taskDto);
-        }
-        catch (Exception e)
+        // Create task
+        var newTask = new Task()
         {
-            return Results.BadRequest(e.Message);
-        }
-    }).WithName("AddTask")
+            Name = payload.Name,
+            Title = payload.Title,
+            Status = payload.Status,
+            Priority = payload.Priority,
+        };
+        await dbContext.Tasks.AddAsync(newTask);
+
+        // Save changes
+        await dbContext.SaveChangesAsync();
+
+        // Create tasks_tags
+        await dbContext.TaskTags.AddRangeAsync(tags.Select(t => new TaskTag()
+        {
+            TaskId = newTask.Id,
+            TagId = t.Id,
+        }));
+        await dbContext.SaveChangesAsync();
+
+        // Create response data
+        var taskDto = new TaskDto()
+        {
+            Id = newTask.Id,
+            Name = newTask.Name,
+            Title = newTask.Title,
+            Tags = tags.Select(t => new TagPreloadDto()
+            {
+                Id = t.Id,
+                Name = t.Name,
+            }).ToList(),
+            Status = newTask.Status,
+            Priority = newTask.Priority,
+        };
+
+        return TypedResults.CreatedAtRoute(taskDto, "GetTaskById", new { id = newTask.Id });
+    }).WithName("CreateTask")
     .WithOpenApi();
+
+app.MapPut("/tasks/{id:int}", async Task<Results<BadRequest<string>, NotFound, NoContent>> (
+    int id, Task task, ShadcnTaskDbContext dbContext) =>
+{
+    if (id != task.Id)
+    {
+        return TypedResults.BadRequest("Id mismatch.");
+    }
+
+    var isExist = await dbContext.Tasks.AnyAsync(i => i.Id == id);
+    if (!isExist)
+    {
+        return TypedResults.NotFound();
+    }
+
+    dbContext.Update(task);
+    await dbContext.SaveChangesAsync();
+
+    return TypedResults.NoContent();
+}).WithName("UpdateTask").WithOpenApi();
+
+app.MapDelete("/tasks/{id:int}", async Task<Results<NotFound, NoContent>> (int id, ShadcnTaskDbContext dbContext) =>
+{
+    var deletedCount = await dbContext.Tasks.Where(i => i.Id == id).ExecuteDeleteAsync();
+
+    if (deletedCount == 0)
+    {
+        return TypedResults.NotFound();
+    }
+
+    return TypedResults.NoContent();
+}).WithName("DeleteTask").WithOpenApi();
 
 #endregion
 
