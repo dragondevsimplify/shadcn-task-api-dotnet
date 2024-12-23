@@ -2,7 +2,6 @@ using System.Linq.Expressions;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Internal;
 using shadcn_taks_api.Persistence.Dtos;
 using shadcn_taks_api.Persistence;
 using shadcn_taks_api.Persistence.Entities;
@@ -70,7 +69,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
     var tags = await tagsQuery.ToListAsync();
 
     // Pagination
-    if (req.Page.HasValue && req.PageSize.HasValue)
+    if (req is { Page: not null, PageSize: not null })
     {
         var page = req.Page.Value;
         var pageSize = req.PageSize.Value;
@@ -273,7 +272,7 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
             .ToListAsync();
 
         // Pagination
-        if (req.Page.HasValue && req.PageSize.HasValue)
+        if (req is { Page: not null, PageSize: not null })
         {
             var page = req.Page.Value;
             var pageSize = req.PageSize.Value;
