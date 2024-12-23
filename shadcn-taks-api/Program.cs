@@ -2,6 +2,7 @@ using System.Linq.Expressions;
 using System.Text.Json.Serialization;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.EntityFrameworkCore.Internal;
 using shadcn_taks_api.Persistence.Dtos;
 using shadcn_taks_api.Persistence;
 using shadcn_taks_api.Persistence.Entities;
@@ -40,7 +41,7 @@ app.UseHttpsRedirection();
 
 app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbContext dbContext) =>
 {
-    var tagsTable = dbContext.Tags.AsNoTracking();
+    var tagsQuery = dbContext.Tags.AsNoTracking();
 
     // Sorting
     if (!string.IsNullOrEmpty(req.SortBy) && !string.IsNullOrEmpty(req.SortOrder.ToString()))
@@ -54,19 +55,19 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
             _ => t => t.Id
         };
 
-        tagsTable = sortOrder == "ASC"
-            ? tagsTable.OrderBy(keySelector)
-            : tagsTable.OrderByDescending(keySelector);
+        tagsQuery = sortOrder == "ASC"
+            ? tagsQuery.OrderBy(keySelector)
+            : tagsQuery.OrderByDescending(keySelector);
     }
 
     // Filtering
     if (!string.IsNullOrEmpty(req.Name?.Trim()))
     {
-        tagsTable = tagsTable.Where(t => t.Name.Contains(req.Name.Trim()));
+        tagsQuery = tagsQuery.Where(t => t.Name.Contains(req.Name.Trim()));
     }
 
     // Get all tags
-    var tags = await tagsTable.ToListAsync();
+    var tags = await tagsQuery.ToListAsync();
 
     // Pagination
     if (req.Page.HasValue && req.PageSize.HasValue)
@@ -77,7 +78,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
         if (page > 0 && pageSize > 0)
         {
             var offset = (page - 1) * pageSize;
-            var pagedTasks = await tagsTable.Skip(offset).Take(pageSize).ToListAsync();
+            var pagedTasks = await tagsQuery.Skip(offset).Take(pageSize).ToListAsync();
 
             var pagination = new PaginationResponse<TagDto>()
             {
@@ -221,16 +222,89 @@ app.MapDelete("/tags/{id:int}", async Task<Results<NotFound, NoContent>> (int id
 
 #region TasksEndpoints
 
-app.MapGet("/tasks", async (ShadcnTaskDbContext dbContext) =>
+app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbContext dbContext) =>
     {
-        try
-        {
-            var tasks = await dbContext.Tasks.AsNoTracking()
-                .Include(i => i.TaskTags)
-                .Include(i => i.Tags)
-                .ToListAsync();
+        var tasksQuery = dbContext.Tasks.AsNoTracking();
 
-            var res = tasks.Select(i => new TaskDto()
+        // Sorting
+        if (!string.IsNullOrEmpty(req.SortBy) && !string.IsNullOrEmpty(req.SortOrder.ToString()))
+        {
+            var sortBy = req.SortBy.ToLower();
+            var sortOrder = req.SortOrder.ToString()!.ToUpper();
+
+            Expression<Func<Task, object>> keySelector = sortBy switch
+            {
+                "name" => t => t.Name,
+                "title" => t => t.Title,
+                _ => t => t.Id
+            };
+
+            tasksQuery = sortOrder == "ASC"
+                ? tasksQuery.OrderBy(keySelector)
+                : tasksQuery.OrderByDescending(keySelector);
+        }
+
+        // Filtering
+        if (!string.IsNullOrEmpty(req.Name?.Trim()))
+        {
+            tasksQuery = tasksQuery.Where(t => t.Name.Contains(req.Name.Trim()));
+        }
+        if (!string.IsNullOrEmpty(req.Title?.Trim()))
+        {
+            tasksQuery = tasksQuery.Where(t => t.Title.Contains(req.Title.Trim()));
+        }
+        if (req.TagIds is { Length: > 0 })
+        {
+            tasksQuery = tasksQuery.Where(t => t.TaskTags.Any(tt => req.TagIds.Contains(tt.TagId)));
+        }
+
+        // Get all tasks
+        var tasks = await tasksQuery
+            .Include(i => i.TaskTags)
+            .Include(i => i.Tags)
+            .ToListAsync();
+
+        // Pagination
+        if (req.Page.HasValue && req.PageSize.HasValue)
+        {
+            var page = req.Page.Value;
+            var pageSize = req.PageSize.Value;
+
+            if (page > 0 && pageSize > 0)
+            {
+                var offset = (page - 1) * pageSize;
+                var pagedTasks = await tasksQuery.Skip(offset).Take(pageSize).ToListAsync();
+
+                var pagination = new PaginationResponse<TaskDto>()
+                {
+                    PageNumber = page,
+                    PageSize = pageSize,
+                    List = pagedTasks.Select(i => new TaskDto()
+                    {
+                        Id = i.Id,
+                        Name = i.Name,
+                        Title = i.Title,
+                        Tags = i.Tags.Select(t => new TagPreloadDto()
+                        {
+                            Id = t.Id,
+                            Name = t.Name,
+                        }).ToList(),
+                        Status = i.Status,
+                        Priority = i.Priority,
+                    }).ToList(),
+                    TotalItems = tasks.Count,
+                    TotalPages = (int)Math.Ceiling((double)tasks.Count / pageSize),
+                };
+
+                return Results.Ok(pagination);
+            }
+        }
+
+        var getAll = new PaginationResponse<TaskDto>()
+        {
+            PageNumber = 0,
+            PageSize = 0,
+            List = tasks.Select(i => new TaskDto()
             {
                 Id = i.Id,
                 Name = i.Name,
@@ -242,14 +316,12 @@ app.MapGet("/tasks", async (ShadcnTaskDbContext dbContext) =>
                 }).ToList(),
                 Status = i.Status,
                 Priority = i.Priority,
-            });
+            }).ToList(),
+            TotalItems = tasks.Count,
+            TotalPages = 0,
+        };
 
-            return Results.Ok(res);
-        }
-        catch (Exception e)
-        {
-            return Results.BadRequest(e.Message);
-        }
+        return TypedResults.Ok(getAll);
     })
     .WithName("GetTasks")
     .WithOpenApi();

@@ -14,12 +14,12 @@ public static class EnumConverter
 
         if (typeof(TEnum) == typeof(TaskStatus))
         {
-            return (TEnum)(object)TaskStatus.NotFound;
+            return (TEnum)(object)TaskStatus.Unknown;
         }
 
         if (typeof(TEnum) == typeof(TaskPriority))
         {
-            return (TEnum)(object)TaskPriority.NotFound;
+            return (TEnum)(object)TaskPriority.Unknown;
         }
 
         throw new ArgumentException("Invalid enum value", nameof(value));

@@ -15,10 +15,10 @@ public class Task
 
 public enum TaskStatus
 {
-    NotFound, Backlog, Todo, InProgress, Done, Canceled
+    Unknown, Backlog, Todo, InProgress, Done, Canceled
 }
 
 public enum TaskPriority
 {
-    NotFound, Low, Medium, High
+    Unknown, Low, Medium, High
 }
