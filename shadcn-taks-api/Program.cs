@@ -8,6 +8,7 @@ using shadcn_taks_api.Persistence.Entities;
 using shadcn_taks_api.Persistence.Requests;
 using shadcn_taks_api.Persistence.Responses;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
+using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -332,6 +333,18 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
     })
     .WithName("GetTasks")
     .WithOpenApi();
+
+app.MapGet("/tasks/statuses", () =>
+{
+    var statuses = Enum.GetValues(typeof(TaskStatus)).Cast<TaskStatus>();
+    return Results.Ok(statuses);
+}).WithName("GetTaskStatuses").WithOpenApi();
+
+app.MapGet("/tasks/priorities", () =>
+{
+    var priorities = Enum.GetValues(typeof(TaskPriority)).Cast<TaskPriority>();
+    return Results.Ok(priorities);
+}).WithName("GetTaskPriorities").WithOpenApi();
 
 app.MapPost("/tasks", async (CreateTaskRequest payload, ShadcnTaskDbContext dbContext) =>
     {
