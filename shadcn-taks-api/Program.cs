@@ -1,5 +1,6 @@
 using System.Linq.Expressions;
 using System.Text.Json.Serialization;
+using AutoMapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using shadcn_taks_api.Persistence.Dtos;
@@ -21,6 +22,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
 {
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
+builder.Services.AddAutoMapper(typeof(MappingProfile));
 
 
 var app = builder.Build();
@@ -39,7 +41,7 @@ app.UseHttpsRedirection();
 
 #region TagsEndpoints
 
-app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbContext dbContext) =>
+app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
 {
     var tagsQuery = dbContext.Tags.AsNoTracking();
 
@@ -78,25 +80,13 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
         if (page > 0 && pageSize > 0)
         {
             var offset = (page - 1) * pageSize;
-            var pagedTasks = await tagsQuery.Skip(offset).Take(pageSize).Include(t => t.Tasks).ToListAsync();
+            var pagedTags = await tagsQuery.Skip(offset).Take(pageSize).Include(t => t.Tasks).ToListAsync();
 
             var pagination = new PaginationResponse<TagDto>()
             {
                 PageNumber = page,
                 PageSize = pageSize,
-                List = pagedTasks.Select(i => new TagDto()
-                {
-                    Id = i.Id,
-                    Name = i.Name,
-                    Tasks = i.Tasks.Select(t => new TaskPreloadDto()
-                    {
-                        Id = t.Id,
-                        Name = t.Name,
-                        Title = t.Title,
-                        Status = t.Status,
-                        Priority = t.Priority,
-                    }).ToList(),
-                }).ToList(),
+                List = pagedTags.Select(mapper.Map<TagDto>).ToList(),
                 TotalItems = tags.Count,
                 TotalPages = (int)Math.Ceiling((double)tags.Count / pageSize),
             };
@@ -109,19 +99,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
     {
         PageNumber = 0,
         PageSize = 0,
-        List = tags.Select(i => new TagDto()
-        {
-            Id = i.Id,
-            Name = i.Name,
-            Tasks = i.Tasks.Select(t => new TaskPreloadDto()
-            {
-                Id = t.Id,
-                Name = t.Name,
-                Title = t.Title,
-                Status = t.Status,
-                Priority = t.Priority,
-            }).ToList(),
-        }).ToList(),
+        List = tags.Select(mapper.Map<TagDto>).ToList(),
         TotalItems = tags.Count,
         TotalPages = 0,
     };
@@ -129,7 +107,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
     return TypedResults.Ok(getAll);
 }).WithName("GetTagList").WithOpenApi();
 
-app.MapGet("/tags/{id:int}", async Task<Results<NotFound, Ok<TagDto>>> (int id, ShadcnTaskDbContext dbContext) =>
+app.MapGet("/tags/{id:int}", async Task<Results<NotFound, Ok<TagDto>>> (int id, ShadcnTaskDbContext dbContext, IMapper mapper) =>
 {
     var tag = await dbContext.Tags
         .AsNoTracking()
@@ -141,26 +119,13 @@ app.MapGet("/tags/{id:int}", async Task<Results<NotFound, Ok<TagDto>>> (int id, 
         return TypedResults.NotFound();
     }
 
-    var tagDto = new TagDto()
-    {
-        Id = tag.Id,
-        Name = tag.Name,
-        Tasks = tag.Tasks.Select(t => new TaskPreloadDto()
-        {
-            Id = t.Id,
-            Name = t.Name,
-            Title = t.Title,
-            Status = t.Status,
-            Priority = t.Priority,
-        }).ToList(),
-    };
-
+    var tagDto = mapper.Map<TagDto>(tag);
     return TypedResults.Ok(tagDto);
 }).WithName("GetTagById").WithOpenApi();
 
 app.MapPost("/tags",
     async Task<Results<BadRequest<string>, CreatedAtRoute<TagDto>>> (CreateTagRequest payload,
-        ShadcnTaskDbContext dbContext) =>
+        ShadcnTaskDbContext dbContext, IMapper mapper) =>
     {
         if (payload.Id.HasValue)
         {
@@ -182,12 +147,7 @@ app.MapPost("/tags",
         await dbContext.SaveChangesAsync();
 
         // Create response data
-        var tagDto = new TagDto()
-        {
-            Id = newTag.Id,
-            Name = newTag.Name,
-        };
-
+        var tagDto = mapper.Map<TagDto>(newTag);
         return TypedResults.CreatedAtRoute(tagDto, "GetTagById", new { id = newTag.Id });
     }).WithName("CreateTag").WithOpenApi();
 
@@ -233,7 +193,7 @@ app.MapDelete("/tags/{id:int}", async Task<Results<NotFound, NoContent>> (int id
 
 #region TasksEndpoints
 
-app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbContext dbContext) =>
+app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
     {
         var tasksQuery = dbContext.Tasks.AsNoTracking();
 
@@ -305,19 +265,7 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
                 {
                     PageNumber = page,
                     PageSize = pageSize,
-                    List = pagedTasks.Select(i => new TaskDto()
-                    {
-                        Id = i.Id,
-                        Name = i.Name,
-                        Title = i.Title,
-                        Tags = i.Tags.Select(t => new TagPreloadDto()
-                        {
-                            Id = t.Id,
-                            Name = t.Name,
-                        }).ToList(),
-                        Status = i.Status,
-                        Priority = i.Priority,
-                    }).ToList(),
+                    List = pagedTasks.Select(mapper.Map<TaskDto>).ToList(),
                     TotalItems = tasks.Count,
                     TotalPages = (int)Math.Ceiling((double)tasks.Count / pageSize),
                 };
@@ -330,19 +278,7 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
         {
             PageNumber = 0,
             PageSize = 0,
-            List = tasks.Select(i => new TaskDto()
-            {
-                Id = i.Id,
-                Name = i.Name,
-                Title = i.Title,
-                Tags = i.Tags.Select(t => new TagPreloadDto()
-                {
-                    Id = t.Id,
-                    Name = t.Name,
-                }).ToList(),
-                Status = i.Status,
-                Priority = i.Priority,
-            }).ToList(),
+            List = tasks.Select(mapper.Map<TaskDto>).ToList(),
             TotalItems = tasks.Count,
             TotalPages = 0,
         };
@@ -364,7 +300,7 @@ app.MapGet("/tasks/priorities", () =>
     return TypedResults.Ok(priorities);
 }).WithName("GetTaskPriorityList").WithOpenApi();
 
-app.MapGet("/tasks/{id:int}", async Task<Results<NotFound, Ok<TaskDto>>> (int id, ShadcnTaskDbContext dbContext) =>
+app.MapGet("/tasks/{id:int}", async Task<Results<NotFound, Ok<TaskDto>>> (int id, ShadcnTaskDbContext dbContext, IMapper mapper) =>
 {
     var task = await dbContext.Tasks
         .AsNoTracking()
@@ -376,24 +312,12 @@ app.MapGet("/tasks/{id:int}", async Task<Results<NotFound, Ok<TaskDto>>> (int id
         return TypedResults.NotFound();
     }
 
-    var taskDto = new TaskDto()
-    {
-        Id = task.Id,
-        Name = task.Name,
-        Title = task.Title,
-        Tags = task.Tags.Select(t => new TagPreloadDto()
-        {
-            Id = t.Id,
-            Name = t.Name,
-        }).ToList(),
-        Status = task.Status,
-        Priority = task.Priority,
-    };
-
+    var taskDto = mapper.Map<TaskDto>(task);
     return TypedResults.Ok(taskDto);
 }).WithName("GetTaskById").WithOpenApi();
 
-app.MapPost("/tasks", async Task<Results<BadRequest<string>, CreatedAtRoute<TaskDto>>> (CreateTaskRequest payload, ShadcnTaskDbContext dbContext) =>
+app.MapPost("/tasks", async Task<Results<BadRequest<string>, CreatedAtRoute<TaskDto>>> (
+        CreateTaskRequest payload, ShadcnTaskDbContext dbContext, IMapper mapper) =>
     {
         // Check if name is existing
         var isExist = await dbContext.Tasks.AnyAsync(t => t.Name == payload.Name);
@@ -446,21 +370,11 @@ app.MapPost("/tasks", async Task<Results<BadRequest<string>, CreatedAtRoute<Task
         }));
         await dbContext.SaveChangesAsync();
 
-        // Create response data
-        var taskDto = new TaskDto()
-        {
-            Id = newTask.Id,
-            Name = newTask.Name,
-            Title = newTask.Title,
-            Tags = tags.Select(t => new TagPreloadDto()
-            {
-                Id = t.Id,
-                Name = t.Name,
-            }).ToList(),
-            Status = newTask.Status,
-            Priority = newTask.Priority,
-        };
+        // Assign tags to response
+        newTask.Tags = tags;
 
+        // Create response data
+        var taskDto = mapper.Map<TaskDto>(newTask);
         return TypedResults.CreatedAtRoute(taskDto, "GetTaskById", new { id = newTask.Id });
     }).WithName("CreateTask")
     .WithOpenApi();
