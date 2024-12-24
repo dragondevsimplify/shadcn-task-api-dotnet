@@ -82,7 +82,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
             var offset = (page - 1) * pageSize;
             var pagedTags = await tagsQuery.Skip(offset).Take(pageSize).Include(t => t.Tasks).ToListAsync();
 
-            var pagination = new PaginationResponse<TagDto>()
+            var pagination = new PaginationDto<TagDto>()
             {
                 PageNumber = page,
                 PageSize = pageSize,
@@ -95,7 +95,7 @@ app.MapGet("/tags", async ([AsParameters] GetTagListRequest req, ShadcnTaskDbCon
         }
     }
 
-    var getAll = new PaginationResponse<TagDto>()
+    var getAll = new PaginationDto<TagDto>()
     {
         PageNumber = 0,
         PageSize = 0,
@@ -261,7 +261,7 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
                     .Include(i => i.Tags)
                     .ToListAsync();
 
-                var pagination = new PaginationResponse<TaskDto>()
+                var pagination = new PaginationDto<TaskDto>()
                 {
                     PageNumber = page,
                     PageSize = pageSize,
@@ -274,7 +274,7 @@ app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbC
             }
         }
 
-        var getAll = new PaginationResponse<TaskDto>()
+        var getAll = new PaginationDto<TaskDto>()
         {
             PageNumber = 0,
             PageSize = 0,
