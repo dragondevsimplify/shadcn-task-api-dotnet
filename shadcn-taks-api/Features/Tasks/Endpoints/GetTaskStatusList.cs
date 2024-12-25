@@ -1,3 +1,5 @@
+using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
+
 namespace shadcn_taks_api.Features.Tasks.Endpoints;
 
 public static class GetTaskStatusList

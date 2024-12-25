@@ -1,7 +1,8 @@
+using shadcn_taks_api.Features.Tags.Dtos;
 using shadcn_taks_api.Persistence.Entities;
 using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
-namespace shadcn_taks_api.Persistence.Dtos;
+namespace shadcn_taks_api.Features.Tasks.Dtos;
 
 public class TaskDto
 {

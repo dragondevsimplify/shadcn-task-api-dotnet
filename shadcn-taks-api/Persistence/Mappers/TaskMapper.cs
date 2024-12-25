@@ -1,8 +1,8 @@
 using AutoMapper;
-using shadcn_taks_api.Persistence.Dtos;
+using shadcn_taks_api.Features.Tasks.Dtos;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
 
-namespace shadcn_taks_api.Features.Tasks.Mappers;
+namespace shadcn_taks_api.Persistence.Mappers;
 
 public class TaskMapper : Profile
 {

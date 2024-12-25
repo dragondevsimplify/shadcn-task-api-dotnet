@@ -1,10 +1,10 @@
 using System.Linq.Expressions;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Persistence;
-using shadcn_taks_api.Persistence.Dtos;
+using shadcn_taks_api.Models;
+using shadcn_taks_api.Persistence.Contexts;
+using shadcn_taks_api.Features.Tasks.Dtos;
 using shadcn_taks_api.Persistence.Requests;
-using shadcn_taks_api.Persistence.Responses;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
 
 namespace shadcn_taks_api.Features.Tasks.Endpoints;

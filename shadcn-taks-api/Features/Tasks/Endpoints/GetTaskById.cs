@@ -1,8 +1,8 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Persistence;
-using shadcn_taks_api.Persistence.Dtos;
+using shadcn_taks_api.Persistence.Contexts;
+using shadcn_taks_api.Features.Tasks.Dtos;
 
 namespace shadcn_taks_api.Features.Tasks.Endpoints;
 

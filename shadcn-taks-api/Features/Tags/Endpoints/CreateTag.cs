@@ -1,10 +1,10 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Persistence;
-using shadcn_taks_api.Persistence.Dtos;
+using shadcn_taks_api.Persistence.Contexts;
+using shadcn_taks_api.Features.Tags.Dtos;
+using shadcn_taks_api.Features.Tags.Models;
 using shadcn_taks_api.Persistence.Entities;
-using shadcn_taks_api.Persistence.Requests;
 
 namespace shadcn_taks_api.Features.Tags.Endpoints;
 
@@ -16,11 +16,6 @@ public static class CreateTag
             async Task<Results<BadRequest<string>, CreatedAtRoute<TagDto>>> (CreateTagRequest payload,
                 ShadcnTaskDbContext dbContext, IMapper mapper) =>
             {
-                if (payload.Id.HasValue)
-                {
-                    return TypedResults.BadRequest("Id must be null or not set for create tag.");
-                }
-
                 var isExist = await dbContext.Tags.AnyAsync(t => t.Name == payload.Name);
                 if (isExist)
                 {

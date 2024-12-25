@@ -1,7 +1,6 @@
-using shadcn_taks_api.Persistence.Entities;
-using Task = shadcn_taks_api.Persistence.Entities.Task;
+using shadcn_taks_api.Features.Tasks.Dtos;
 
-namespace shadcn_taks_api.Persistence.Dtos;
+namespace shadcn_taks_api.Features.Tags.Dtos;
 
 public class TagDto
 {

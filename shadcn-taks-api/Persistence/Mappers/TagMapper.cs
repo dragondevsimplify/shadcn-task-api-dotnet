@@ -1,8 +1,8 @@
 using AutoMapper;
-using shadcn_taks_api.Persistence.Dtos;
+using shadcn_taks_api.Features.Tags.Dtos;
 using shadcn_taks_api.Persistence.Entities;
 
-namespace shadcn_taks_api.Features.Tags.Mappers;
+namespace shadcn_taks_api.Persistence.Mappers;
 
 public class TagMapper : Profile
 {

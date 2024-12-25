@@ -1,17 +1,7 @@
-using System.Linq.Expressions;
 using System.Text.Json.Serialization;
-using AutoMapper;
-using Microsoft.AspNetCore.Http.HttpResults;
-using Microsoft.EntityFrameworkCore;
 using shadcn_taks_api.Features.Tags.Endpoints;
 using shadcn_taks_api.Features.Tasks.Endpoints;
-using shadcn_taks_api.Persistence.Dtos;
-using shadcn_taks_api.Persistence;
-using shadcn_taks_api.Persistence.Entities;
-using shadcn_taks_api.Persistence.Requests;
-using shadcn_taks_api.Persistence.Responses;
-using Task = shadcn_taks_api.Persistence.Entities.Task;
-using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
+using shadcn_taks_api.Persistence.Contexts;
 
 var builder = WebApplication.CreateBuilder(args);
 

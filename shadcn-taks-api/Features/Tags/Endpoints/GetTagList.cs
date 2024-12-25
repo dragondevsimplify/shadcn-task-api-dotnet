@@ -1,11 +1,11 @@
 using System.Linq.Expressions;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Persistence;
-using shadcn_taks_api.Persistence.Dtos;
+using shadcn_taks_api.Persistence.Contexts;
+using shadcn_taks_api.Features.Tags.Dtos;
 using shadcn_taks_api.Persistence.Entities;
-using shadcn_taks_api.Persistence.Requests;
-using shadcn_taks_api.Persistence.Responses;
+using shadcn_taks_api.Features.Tags.Models;
+using shadcn_taks_api.Models;
 
 namespace shadcn_taks_api.Features.Tags.Endpoints;
 

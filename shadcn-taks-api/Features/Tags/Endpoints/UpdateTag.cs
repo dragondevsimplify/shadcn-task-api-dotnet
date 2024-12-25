@@ -1,7 +1,7 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Persistence;
-using shadcn_taks_api.Persistence.Entities;
+using shadcn_taks_api.Features.Tags.Models;
+using shadcn_taks_api.Persistence.Contexts;
 
 namespace shadcn_taks_api.Features.Tags.Endpoints;
 
@@ -10,7 +10,7 @@ public static class UpdateTag
     public static void MapUpdateTag(this IEndpointRouteBuilder app)
     {
         app.MapPut("/tags/{id:int}", async Task<Results<BadRequest<string>, NotFound, NoContent>> (
-            int id, Tag tag, ShadcnTaskDbContext dbContext) =>
+            int id, UpdateTagRequest tag, ShadcnTaskDbContext dbContext) =>
         {
             if (id != tag.Id)
             {

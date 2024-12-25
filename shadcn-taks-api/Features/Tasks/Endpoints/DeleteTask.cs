@@ -1,6 +1,6 @@
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Persistence;
+using shadcn_taks_api.Persistence.Contexts;
 
 namespace shadcn_taks_api.Features.Tasks.Endpoints;
 
