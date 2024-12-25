@@ -1,4 +1,4 @@
-namespace shadcn_taks_api.Persistence.Requests;
+namespace shadcn_taks_api.Models;
 
 public class GetListBaseRequest
 {

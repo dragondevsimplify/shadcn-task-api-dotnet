@@ -1,4 +1,4 @@
-namespace shadcn_taks_api.Persistence.Responses;
+namespace shadcn_taks_api.Models;
 
 public class PaginationResponse<T>
 {

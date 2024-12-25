@@ -1,11 +1,11 @@
 using Microsoft.EntityFrameworkCore;
-using shadcn_taks_api.Conversions;
+using shadcn_taks_api.Converters;
 using shadcn_taks_api.Persistence.Entities;
 using Task = shadcn_taks_api.Persistence.Entities.Task;
 using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 using TaskPriority = shadcn_taks_api.Persistence.Entities.TaskPriority;
 
-namespace shadcn_taks_api.Persistence;
+namespace shadcn_taks_api.Persistence.Contexts;
 
 public class ShadcnTaskDbContext(DbContextOptions<ShadcnTaskDbContext> options) : DbContext
 {

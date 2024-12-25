@@ -1,7 +1,7 @@
 using shadcn_taks_api.Persistence.Entities;
 using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
-namespace shadcn_taks_api.Conversions;
+namespace shadcn_taks_api.Converters;
 
 public static class EnumConverter
 {

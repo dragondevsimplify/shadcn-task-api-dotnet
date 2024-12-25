@@ -1,4 +1,4 @@
-namespace shadcn_taks_api.Dtos;
+namespace shadcn_taks_api.Features.Tasks.Dtos;
 
 public class TaskTagDto
 {
