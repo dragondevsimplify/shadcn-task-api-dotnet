@@ -1,6 +1,6 @@
 namespace shadcn_taks_api.Persistence.Responses;
 
-public class PaginationDto<T>
+public class PaginationResponse<T>
 {
     public int PageNumber { get; set; }
     public int PageSize { get; set; }
