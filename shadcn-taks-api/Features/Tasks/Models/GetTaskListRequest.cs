@@ -2,7 +2,7 @@ using shadcn_taks_api.Models;
 using shadcn_taks_api.Persistence.Entities;
 using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
-namespace shadcn_taks_api.Persistence.Requests;
+namespace shadcn_taks_api.Features.Tasks.Models;
 
 public class GetTaskListRequest : GetListBaseRequest
 {
