@@ -14,6 +14,7 @@ public class TaskMapper : Profile
         CreateMap<Task, TaskPreloadDto>();
         CreateMap<CreateTaskRequest, Task>()
             .ForMember(desc => desc.Tags, opt => opt.Ignore());
-        CreateMap<UpdateTaskRequest, Task>();
+        CreateMap<UpdateTaskRequest, Task>()
+            .ForMember(desc => desc.Tags, opt => opt.Ignore());
     }
 }
