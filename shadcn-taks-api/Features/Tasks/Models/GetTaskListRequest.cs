@@ -4,7 +4,7 @@ using TaskStatus = shadcn_taks_api.Persistence.Entities.TaskStatus;
 
 namespace shadcn_taks_api.Features.Tasks.Models;
 
-public class GetTaskListRequest : GetListBaseRequest
+public class GetTaskListRequest : PaginationParams
 {
     public string? Name { get; set; }
     public string? Title { get; set; }

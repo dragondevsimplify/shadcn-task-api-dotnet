@@ -1,6 +1,7 @@
 using System.Linq.Expressions;
 using AutoMapper;
 using Microsoft.EntityFrameworkCore;
+using shadcn_taks_api.Extensions;
 using shadcn_taks_api.Models;
 using shadcn_taks_api.Persistence.Contexts;
 using shadcn_taks_api.Features.Tasks.Dtos;
@@ -13,99 +14,50 @@ public static class GetTaskList
 {
     public static void MapGetTaskList(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/tasks", async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
-    {
-        var tasksQuery = dbContext.Tasks.AsNoTracking();
-
-        // Sorting
-        if (!string.IsNullOrEmpty(req.SortBy) && !string.IsNullOrEmpty(req.SortOrder.ToString()))
-        {
-            var sortBy = req.SortBy.ToLower();
-            var sortOrder = req.SortOrder.ToString()!.ToUpper();
-
-            Expression<Func<Task, object>> keySelector = sortBy switch
-            {
-                "name" => t => t.Name,
-                "title" => t => t.Title,
-                _ => t => t.Id
-            };
-
-            tasksQuery = sortOrder == "ASC"
-                ? tasksQuery.OrderBy(keySelector)
-                : tasksQuery.OrderByDescending(keySelector);
-        }
-
-        // Filtering
-        if (!string.IsNullOrEmpty(req.Name?.Trim()))
-        {
-            tasksQuery = tasksQuery.Where(t => t.Name.Contains(req.Name.Trim()));
-        }
-
-        if (!string.IsNullOrEmpty(req.Title?.Trim()))
-        {
-            tasksQuery = tasksQuery.Where(t => t.Title.Contains(req.Title.Trim()));
-        }
-
-        if (req.TagIds is { Length: > 0 })
-        {
-            tasksQuery = tasksQuery.Where(t => t.TaskTags.Any(tt => req.TagIds.Contains(tt.TagId)));
-        }
-
-        if (req.Statuses is { Length: > 0 })
-        {
-            tasksQuery = tasksQuery.Where(t => req.Statuses.Contains(t.Status));
-        }
-
-        if (req.Priorities is { Length: > 0 })
-        {
-            tasksQuery = tasksQuery.Where(t => req.Priorities.Contains(t.Priority));
-        }
-
-        // Get all tasks
-        var tasks = await tasksQuery
-            .Include(i => i.Tags)
-            .ToListAsync();
-
-        // Pagination
-        if (req is { Page: not null, PageSize: not null })
-        {
-            var page = req.Page.Value;
-            var pageSize = req.PageSize.Value;
-
-            if (page > 0 && pageSize > 0)
-            {
-                var offset = (page - 1) * pageSize;
-                var pagedTasks = await tasksQuery
-                    .Skip(offset)
-                    .Take(pageSize)
-                    .Include(i => i.Tags)
-                    .ToListAsync();
-
-                var pagination = new PaginationResponse<TaskDto>()
+        app.MapGet("/tasks",
+                async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
                 {
-                    PageNumber = page,
-                    PageSize = pageSize,
-                    List = pagedTasks.Select(mapper.Map<TaskDto>).ToList(),
-                    TotalItems = tasks.Count,
-                    TotalPages = (int)Math.Ceiling((double)tasks.Count / pageSize),
-                };
+                    var tasks = await dbContext.Tasks
+                        .AsNoTracking()
+                        .WhereIf(!string.IsNullOrWhiteSpace(req.Name), i => i.Name.Contains(req.Name!.Trim()))
+                        .WhereIf(!string.IsNullOrWhiteSpace(req.Title), i => i.Title.Contains(req.Title!.Trim()))
+                        .WhereIf(req.TagIds is { Length: > 0 }, i => i.TaskTags.Any(x => req.TagIds!.Contains(x.TagId)))
+                        .WhereIf(req.Statuses is { Length: > 0 }, i => req.Statuses!.Contains(i.Status))
+                        .WhereIf(req.Priorities is { Length: > 0 }, i => req.Priorities!.Contains(i.Priority))
+                        .Sortable(req)
+                        .Paginate(req)
+                        .Include(t => t.Tags)
+                        .ToListAsync();
 
-                return TypedResults.Ok(pagination);
-            }
-        }
+                    // Response pagination
+                    if (req is { PageNumber: > 0, PageSize: > 0 })
+                    {
+                        var allTasksCount = await dbContext.Tags.CountAsync();
+                        var pagination = new PaginationResponse<TaskDto>()
+                        {
+                            PageNumber = req.PageNumber.Value,
+                            PageSize = req.PageSize.Value,
+                            List = tasks.Select(mapper.Map<TaskDto>).ToList(),
+                            TotalItems = allTasksCount,
+                            TotalPages = (int)Math.Ceiling((double)allTasksCount / req.PageSize.Value),
+                        };
 
-        var getAll = new PaginationResponse<TaskDto>()
-        {
-            PageNumber = 0,
-            PageSize = 0,
-            List = tasks.Select(mapper.Map<TaskDto>).ToList(),
-            TotalItems = tasks.Count,
-            TotalPages = 0,
-        };
+                        return TypedResults.Ok(pagination);
+                    }
 
-        return TypedResults.Ok(getAll);
-    })
-    .WithName("GetTaskList")
-    .WithOpenApi();
+                    // Response all
+                    var getAll = new PaginationResponse<TaskDto>()
+                    {
+                        PageNumber = 0,
+                        PageSize = 0,
+                        List = tasks.Select(mapper.Map<TaskDto>).ToList(),
+                        TotalItems = tasks.Count,
+                        TotalPages = 0,
+                    };
+
+                    return TypedResults.Ok(getAll);
+                })
+            .WithName("GetTaskList")
+            .WithOpenApi();
     }
 }
