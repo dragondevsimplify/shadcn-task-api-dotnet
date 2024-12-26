@@ -1,6 +1,7 @@
 using AutoMapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
+using shadcn_taks_api.Extensions;
 using shadcn_taks_api.Persistence.Contexts;
 using shadcn_taks_api.Features.Tasks.Dtos;
 using shadcn_taks_api.Persistence.Entities;
@@ -56,7 +57,9 @@ public static class CreateTask
                 // Create response data
                 var taskDto = mapper.Map<TaskDto>(newTask);
                 return TypedResults.CreatedAtRoute(taskDto, "GetTaskById", new { id = newTask.Id });
-            }).WithName("CreateTask")
-            .WithOpenApi();
+            })
+            .WithName("CreateTask")
+            .WithOpenApi()
+            .WithRequestValidation<CreateTaskRequest>();
     }
 }
