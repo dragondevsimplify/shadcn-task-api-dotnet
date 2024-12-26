@@ -12,8 +12,8 @@ public static class GetTagList
 {
     public static void MapGetTagList(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/tags",
-            async ([AsParameters] GetTagListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
+        app.MapPost("/tags/paging",
+            async (GetTagListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
             {
                 var tags = await dbContext.Tags
                     .AsNoTracking()
@@ -24,12 +24,12 @@ public static class GetTagList
                     .ToListAsync();
 
                 // Response pagination
-                if (req is { Page: > 0, PageSize: > 0 })
+                if (req is { PageNumber: > 0, PageSize: > 0 })
                 {
                     var allTagsCount = await dbContext.Tags.CountAsync();
                     var pagination = new PaginationResponse<TagDto>()
                     {
-                        PageNumber = req.Page.Value,
+                        PageNumber = req.PageNumber.Value,
                         PageSize = req.PageSize.Value,
                         List = tags.Select(mapper.Map<TagDto>).ToList(),
                         TotalItems = allTagsCount,

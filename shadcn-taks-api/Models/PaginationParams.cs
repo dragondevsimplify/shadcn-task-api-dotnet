@@ -28,12 +28,11 @@ public interface IPagingParams
     int? PageSize { get; set; }
 }
 
-public interface IPaginationParams : IOrderingParams, IFilteringParams, IPagingParams;
+public interface IPaginationParams : IOrderingParams, IPagingParams;
 
 public class PaginationParams : IPaginationParams
 {
     public int? PageNumber { get; set; }
     public int? PageSize { get; set; }
     public List<ColumnSorting> Orders { get; set; } = [];
-    public List<ColumnFiltering> Filters { get; set; } = [];
 }

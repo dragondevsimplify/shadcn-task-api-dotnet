@@ -19,18 +19,16 @@ public static class LinqExtensions
             return query.OrderBy("Id");
         }
 
-        var orderedQuery = query.OrderBy(@params.Orders.First().Order);
-        return @params.Orders.Skip(1).Aggregate(orderedQuery, (current, order) => current.ThenBy(order.Order));
+        var firstOrder = @params.Orders.First();
+        var orderedQuery = query.OrderBy($"{firstOrder.Column} {firstOrder.Order}");
 
-        // return string.IsNullOrWhiteSpace(@params.SortBy) || string.IsNullOrWhiteSpace(@params.Order.ToString())
-        //     ? query
-        //     : query.OrderBy($"{@params.SortBy} {@params.SortOrder.ToString()}");
+        return @params.Orders.Skip(1).Aggregate(orderedQuery, (current, order) => current.ThenBy($"{order.Column} {order.Order}"));
     }
 
-    public static IQueryable<T> Paginate<T>(this IQueryable<T> query, GetListBaseRequest req)
+    public static IQueryable<T> Paginate<T>(this IQueryable<T> query, IPagingParams @params)
     {
-        return req is not { Page: > 0, PageSize: > 0 }
-            ? query
-            : query.Skip((req.Page.Value - 1) * req.PageSize.Value).Take(req.PageSize.Value);
+        return @params is { PageNumber: > 0, PageSize: > 0 }
+            ? query.Skip((@params.PageNumber.Value - 1) * @params.PageSize.Value).Take(@params.PageSize.Value)
+            : query;
     }
 }

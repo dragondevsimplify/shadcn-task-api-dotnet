@@ -1,12 +1,11 @@
-using System.Linq.Expressions;
 using AutoMapper;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using shadcn_taks_api.Extensions;
 using shadcn_taks_api.Models;
 using shadcn_taks_api.Persistence.Contexts;
 using shadcn_taks_api.Features.Tasks.Dtos;
 using shadcn_taks_api.Features.Tasks.Models;
-using Task = shadcn_taks_api.Persistence.Entities.Task;
 
 namespace shadcn_taks_api.Features.Tasks.Endpoints;
 
@@ -14,8 +13,8 @@ public static class GetTaskList
 {
     public static void MapGetTaskList(this IEndpointRouteBuilder app)
     {
-        app.MapGet("/tasks",
-                async ([AsParameters] GetTaskListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
+        app.MapPost("/tasks/paging",
+                async (GetTaskListRequest req, ShadcnTaskDbContext dbContext, IMapper mapper) =>
                 {
                     var tasks = await dbContext.Tasks
                         .AsNoTracking()
