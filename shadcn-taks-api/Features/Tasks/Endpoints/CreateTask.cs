@@ -14,10 +14,10 @@ public static class CreateTask
     public static void MapCreateTask(this IEndpointRouteBuilder app)
     {
         app.MapPost("/tasks", async Task<Results<BadRequest<string>, CreatedAtRoute<TaskDto>>> (
-                CreateTaskRequest payload, ShadcnTaskDbContext dbContext, IMapper mapper) =>
+                CreateTaskRequest task, ShadcnTaskDbContext dbContext, IMapper mapper) =>
             {
                 // Check if name is existing
-                var isExist = await dbContext.Tasks.AnyAsync(t => t.Name == payload.Name);
+                var isExist = await dbContext.Tasks.AnyAsync(t => t.Name == task.Name);
                 if (isExist)
                 {
                     return TypedResults.BadRequest("Task with the same name already exists");
@@ -25,35 +25,18 @@ public static class CreateTask
 
                 // Create tags if not existing in DB
                 List<Tag> tags = [];
-                foreach (var payloadTag in payload.Tags)
+                foreach (var newTag in task.Tags.Select(mapper.Map<Tag>))
                 {
-                    if (!payloadTag.Id.HasValue)
+                    if (newTag.Id == 0)
                     {
-                        var newTag = new Tag()
-                        {
-                            Name = payloadTag.Name,
-                        };
                         await dbContext.Tags.AddAsync(newTag);
-                        tags.Add(newTag);
                     }
-                    else
-                    {
-                        tags.Add(new Tag()
-                        {
-                            Id = payloadTag.Id.Value,
-                            Name = payloadTag.Name,
-                        });
-                    }
+
+                    tags.Add(newTag);
                 }
 
                 // Create task
-                var newTask = new Task()
-                {
-                    Name = payload.Name,
-                    Title = payload.Title,
-                    Status = payload.Status,
-                    Priority = payload.Priority,
-                };
+                var newTask = mapper.Map<Task>(task);
                 await dbContext.Tasks.AddAsync(newTask);
 
                 // Save changes

@@ -1,5 +1,6 @@
 using AutoMapper;
 using shadcn_taks_api.Features.Tags.Dtos;
+using shadcn_taks_api.Features.Tags.Models;
 using shadcn_taks_api.Persistence.Entities;
 
 namespace shadcn_taks_api.Persistence.Mappers;
@@ -11,5 +12,8 @@ public class TagMapper : Profile
         CreateMap<Tag, TagDto>()
             .ForMember(dest => dest.Tasks, opt => opt.MapFrom(src => src.Tasks));
         CreateMap<Tag, TagPreloadDto>();
+        CreateMap<CreateTagRequest, Tag>();
+        CreateMap<CreateTagAttach, Tag>();
+        CreateMap<UpdateTagRequest, Tag>();
     }
 }

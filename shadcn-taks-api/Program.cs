@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using FluentValidation;
 using shadcn_taks_api.Features.Tags.Endpoints;
 using shadcn_taks_api.Features.Tasks.Endpoints;
 using shadcn_taks_api.Persistence.Contexts;
@@ -15,6 +16,7 @@ builder.Services.ConfigureHttpJsonOptions(options =>
     options.SerializerOptions.Converters.Add(new JsonStringEnumConverter());
 });
 builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies());
+builder.Services.AddValidatorsFromAssemblyContaining<Program>();
 
 
 var app = builder.Build();

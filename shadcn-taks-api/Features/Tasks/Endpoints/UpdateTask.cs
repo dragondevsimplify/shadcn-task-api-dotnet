@@ -1,3 +1,4 @@
+using AutoMapper;
 using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.EntityFrameworkCore;
 using shadcn_taks_api.Persistence.Contexts;
@@ -12,7 +13,7 @@ public static class UpdateTask
     public static void MapUpdateTask(this IEndpointRouteBuilder app)
     {
         app.MapPut("/tasks/{id:int}", async Task<Results<BadRequest<string>, NotFound, NoContent>> (
-            int id, UpdateTaskRequest task, ShadcnTaskDbContext dbContext) =>
+            int id, UpdateTaskRequest task, ShadcnTaskDbContext dbContext, IMapper mapper) =>
         {
             // Check task Id
             if (id != task.Id)
@@ -39,42 +40,25 @@ public static class UpdateTask
 
             // Create tags if not existing in DB
             List<Tag> tags = [];
-            foreach (var payloadTag in task.Tags)
+            foreach (var newTag in task.Tags.Select(mapper.Map<Tag>))
             {
-                if (!payloadTag.Id.HasValue)
+                if (newTag.Id == 0)
                 {
-                    var isExistTag = await dbContext.Tags.AnyAsync(t => t.Name == payloadTag.Name);
+                    var isExistTag = await dbContext.Tags.AnyAsync(t => t.Name == newTag.Name);
+
                     if (isExistTag)
                     {
-                        return TypedResults.BadRequest($"Tag with the same name already exists: {payloadTag.Name}");
+                        return TypedResults.BadRequest($"Tag with the same name already exists: {newTag.Name}");
                     }
 
-                    var newTag = new Tag()
-                    {
-                        Name = payloadTag.Name,
-                    };
                     await dbContext.Tags.AddAsync(newTag);
-                    tags.Add(newTag);
                 }
-                else
-                {
-                    tags.Add(new Tag()
-                    {
-                        Id = payloadTag.Id.Value,
-                        Name = payloadTag.Name,
-                    });
-                }
+
+                tags.Add(newTag);
             }
 
             // Update task & save changes
-            var taskUpdated = new Task()
-            {
-                Id = task.Id,
-                Name = task.Name,
-                Title = task.Title,
-                Status = task.Status,
-                Priority = task.Priority,
-            };
+            var taskUpdated = mapper.Map<Task>(task);
             dbContext.Tasks.Update(taskUpdated);
             await dbContext.SaveChangesAsync();
 
